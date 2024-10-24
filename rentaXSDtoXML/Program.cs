@@ -8,159 +8,70 @@ namespace rentaXSDtoXML
 {
     public class Program
     {
-        private static XmlSchema schema; // Variable global o de clase
+        private static XmlSchema esquemaXml; // Variable global o de clase
         static void Main(string[] argumentos)
         {
+            string ficheroEntrada = argumentos[0];
+            string ficheroSalida = Path.ChangeExtension(ficheroEntrada, "xml");
             try
             {
-                // Asumiendo que tienes estas variables con los nombres de archivo
-                string xsdPath = argumentos[0];
-                string xmlOutputPath = Path.ChangeExtension(xsdPath, "xml");
 
                 // Cargar y compilar el schema
-                using (FileStream fs = new FileStream(xsdPath, FileMode.Open))
+                using (FileStream fs = new FileStream(ficheroEntrada, FileMode.Open))
                 {
-                    schema = XmlSchema.Read(fs, null);
+                    esquemaXml = XmlSchema.Read(fs, null);
                 }
 
                 XmlSchemaSet schemaSet = new XmlSchemaSet();
-                schemaSet.Add(schema);
+                schemaSet.Add(esquemaXml);
                 schemaSet.Compile();
 
                 // Crear el documento XML
-                XmlDocument xmlDoc = new XmlDocument();
-                //XmlDeclaration xmlDeclaration = xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", null);
-                //xmlDoc.AppendChild(xmlDeclaration);
+                XmlDocument documentoXml = new XmlDocument();
 
                 // Procesar el elemento raíz
-                XmlSchemaElement rootElement = schema.Elements.Values.OfType<XmlSchemaElement>().FirstOrDefault();
-                if (rootElement != null)
+                XmlSchemaElement elementoRaiz = esquemaXml.Elements.Values.OfType<XmlSchemaElement>().FirstOrDefault();
+                if (elementoRaiz != null)
                 {
                     // Crear el elemento raíz en el documento
-                    XmlElement root = xmlDoc.CreateElement(rootElement.Name);
-                    xmlDoc.AppendChild(root);
+                    XmlElement root = documentoXml.CreateElement(elementoRaiz.Name);
+                    documentoXml.AppendChild(root);
 
                     // Procesar el contenido del elemento raíz
-                    ProcessSchemaElement(rootElement, root, xmlDoc);
+                    ProcessSchemaElement(elementoRaiz, root, documentoXml);
                 }
 
-                // Guardar el XML usando el nuevo método SaveXml
-                using (StreamWriter sw = new StreamWriter(xmlOutputPath))
+                // Guardar el XML
+                using (StreamWriter sw = new StreamWriter(ficheroSalida))
                 using (CustomXmlWriter writer = new CustomXmlWriter(sw))
                 {
-                    xmlDoc.DocumentElement.WriteTo(writer);
+                    documentoXml.DocumentElement.WriteTo(writer);
                 }
             }
             catch (Exception ex)
             {
+                string pathSalida = Path.ChangeExtension(ficheroSalida, "sal");
                 Console.WriteLine($"Error al procesar el archivo: {ex.Message}");
                 Console.WriteLine(ex.StackTrace);
             }
 
         }
 
-        private static void SaveXml(XmlDocument doc, string filePath)
-        {
-            using (StreamWriter sw = new StreamWriter(filePath))
-            using (CustomXmlWriter writer = new CustomXmlWriter(sw))
-            {
-                doc.Save(writer);
-            }
-        }
-
         public class CustomXmlWriter : XmlTextWriter
         {
+            //Clase personalizada para formatear y grabar el XML
             public CustomXmlWriter(TextWriter w) : base(w)
             {
+                //Al grabar el XML se hace indentando con tabulaciones
                 Formatting = Formatting.Indented;
                 IndentChar = '\t';
                 Indentation = 1;
             }
-
-            public override void WriteEndElement()
-            {
-                if (WriteState == WriteState.Element)
-                {
-                    // Si el elemento está vacío o solo tiene un espacio, escríbelo en una línea
-                    WriteString(" ");
-                    WriteFullEndElement();
-                }
-                else
-                {
-                    base.WriteEndElement();
-                }
-            }
-        }
-
-
-        public static XmlDocument GenerateXMLFromXSD(string xsdPath)
-        {
-            XmlSchema schema = LoadSchema(xsdPath);
-
-            XmlSchemaSet schemaSet = new XmlSchemaSet();
-            schemaSet.Add(schema);
-            schemaSet.Compile();
-
-            XmlDocument xmlDoc = new XmlDocument();
-
-            // Crear el elemento raíz con sus atributos obligatorios
-            XmlElement rootElement = xmlDoc.CreateElement("Declaracion");
-            rootElement.SetAttribute("Modelo", "100");
-            rootElement.SetAttribute("Ejercicio", "2023");
-            rootElement.SetAttribute("Version", "1.0");
-            xmlDoc.AppendChild(rootElement);
-
-            // Procesar el esquema comenzando por el elemento raíz
-            foreach (XmlSchemaElement element in schema.Elements.Values)
-            {
-                if (element.Name == "Declaracion")
-                {
-                    ProcessComplexType((XmlSchemaComplexType)element.SchemaType, rootElement, xmlDoc);
-                }
-            }
-
-            return xmlDoc;
-        }
-
-        public static XmlSchema LoadSchema(string xsdPath)
-        {
-            XmlSchemaSet schemaSet = new XmlSchemaSet();
-            XmlSchema schema;
-
-            using (FileStream fs = new FileStream(xsdPath, FileMode.Open))
-            {
-                schema = XmlSchema.Read(fs, null);
-                schemaSet.Add(schema);
-            }
-
-            try
-            {
-                // Validar y compilar el esquema
-                schemaSet.Compile();
-
-                // Manejar cualquier error de validación
-                if (schemaSet.Count == 0)
-                {
-                    throw new Exception("El esquema XSD no se pudo cargar correctamente.");
-                }
-
-                // Agregar manejo de namespaces si es necesario
-                foreach (XmlSchema s in schemaSet.Schemas())
-                {
-                    schema = s;
-                    break;
-                }
-            }
-            catch (XmlSchemaException ex)
-            {
-                throw new Exception($"Error al compilar el esquema XSD: {ex.Message}", ex);
-            }
-
-            return schema;
         }
 
         private static void ProcessComplexType(XmlSchemaComplexType complexType, XmlElement parentElement, XmlDocument xmlDoc)
         {
+            //Procesado de tipos complejos del esquema (complexType)
             if (complexType.Particle != null)
             {
                 ProcessParticle(complexType.Particle, parentElement, xmlDoc);
@@ -169,9 +80,11 @@ namespace rentaXSDtoXML
 
         private static void ProcessParticle(XmlSchemaParticle particle, XmlElement parentElement, XmlDocument xmlDoc)
         {
+            //Procesado de los componentes del esquema
             switch (particle)
             {
                 case XmlSchemaSequence sequence:
+                    //Procesa los elementos que son 'sequence'
                     foreach (XmlSchemaObject item in sequence.Items)
                     {
                         ProcessSchemaObject(item, parentElement, xmlDoc);
@@ -179,6 +92,7 @@ namespace rentaXSDtoXML
                     break;
 
                 case XmlSchemaChoice choice:
+                    //Procesa los elementos que son 'choice'
                     foreach (XmlSchemaObject item in choice.Items)
                     {
                         ProcessSchemaObject(item, parentElement, xmlDoc);
@@ -186,6 +100,7 @@ namespace rentaXSDtoXML
                     break;
 
                 case XmlSchemaAll all:
+                    //Procesa todos los elementos 
                     foreach (XmlSchemaObject item in all.Items)
                     {
                         ProcessSchemaObject(item, parentElement, xmlDoc);
@@ -196,6 +111,7 @@ namespace rentaXSDtoXML
 
         private static void ProcessSchemaObject(XmlSchemaObject schemaObject, XmlElement parentElement, XmlDocument xmlDoc)
         {
+            //Procesa los objetos que se le pasan desde el metodo para procesar los componentes del esquema 'ProcessParticle'
             switch (schemaObject)
             {
                 case XmlSchemaElement element:
@@ -221,6 +137,8 @@ namespace rentaXSDtoXML
             // Si el elemento padre es el documento raíz y el elemento actual es "Declaracion"
             // procesamos directamente su tipo sin crear un nuevo elemento
             var elementType = schemaElement.ElementSchemaType as XmlSchemaComplexType;
+
+            //Con esto se evita que se creen dos nodos 'Declaracion'
             if (parentElement == xmlDoc.DocumentElement && schemaElement.Name == "Declaracion")
             {
                 if (elementType != null)
@@ -229,66 +147,20 @@ namespace rentaXSDtoXML
                 }
                 return;
             }
+
+            //Se añade un nuevo elemento como hijo del 'parentElement'
             XmlElement newElement = xmlDoc.CreateElement(schemaElement.Name);
             parentElement.AppendChild(newElement);
 
+            //Si el elemento no es nulo, se envia al metodo para procesar tipos complejos
             if (elementType != null)
             {
                 ProcessComplexType(elementType, newElement, xmlDoc);
             }
             else
             {
-                // Si es un tipo simple o no tiene tipo definido, solo añadir un espacio en blanco
+                // Si es un tipo simple o no tiene tipo definido, se añade un espacio en blanco como contenido del elemento
                 newElement.InnerText = " ";
-            }
-        }
-
-        private static string GenerateDefaultValue(XmlSchemaSimpleType simpleType)
-        {
-            return " ";
-        }
-
-        private static string GenerateDefaultValueForBuiltInType(XmlSchemaElement element)
-        {
-            return " ";
-        }
-
-        private static string GenerateDefaultAttributeValue(XmlSchemaAttribute attribute)
-        {
-            return " ";
-        }
-
-        public static void ProcessElementReference(string referenceName, XmlElement element, XmlDocument xmlDoc)
-        {
-            // Este método debería manejar referencias a elementos globales
-            // Por simplicidad, aquí solo establecemos un valor vacío
-            element.InnerText = "";
-
-            // En una implementación más completa, deberías:
-            // 1. Buscar el elemento referenciado en el esquema
-            // 2. Procesar ese elemento como corresponda
-            // 3. Aplicar la misma lógica que para elementos normales
-        }
-
-        private static void ProcessChoice(XmlSchemaChoice choice, XmlElement parentElement, XmlDocument xmlDoc)
-        {
-            // Procesamos todos los elementos dentro del choice
-            foreach (XmlSchemaObject item in choice.Items)
-            {
-                if (item is XmlSchemaElement element)
-                {
-                    ProcessSchemaElement(element, parentElement, xmlDoc);
-                }
-                else if (item is XmlSchemaSequence sequence)
-                {
-                    foreach (XmlSchemaObject seqItem in sequence.Items)
-                    {
-                        if (seqItem is XmlSchemaElement seqElement)
-                        {
-                            ProcessSchemaElement(seqElement, parentElement, xmlDoc);
-                        }
-                    }
-                }
             }
         }
     }
