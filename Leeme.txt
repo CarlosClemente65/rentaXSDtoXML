@@ -1,0 +1,1 @@
+Aplicacion que genera un XML con toda la estructura de la renta incluyendo los elementos opcionales
