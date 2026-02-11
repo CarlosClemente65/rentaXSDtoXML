@@ -13,11 +13,12 @@ namespace rentaXSDtoXML
         {
             string ficheroEntrada = argumentos[0];
             string ficheroSalida = Path.ChangeExtension(ficheroEntrada, "xml");
+            string ficheroSalida2 = "rem90000.xml";
             try
             {
 
                 // Cargar y compilar el schema
-                using (FileStream fs = new FileStream(ficheroEntrada, FileMode.Open))
+                using(FileStream fs = new FileStream(ficheroEntrada, FileMode.Open))
                 {
                     esquemaXml = XmlSchema.Read(fs, null);
                 }
@@ -31,7 +32,7 @@ namespace rentaXSDtoXML
 
                 // Procesar el elemento raíz
                 XmlSchemaElement elementoRaiz = esquemaXml.Elements.Values.OfType<XmlSchemaElement>().FirstOrDefault();
-                if (elementoRaiz != null)
+                if(elementoRaiz != null)
                 {
                     // Crear el elemento raíz en el documento
                     XmlElement root = documentoXml.CreateElement(elementoRaiz.Name);
@@ -42,13 +43,18 @@ namespace rentaXSDtoXML
                 }
 
                 // Guardar el XML
-                using (StreamWriter sw = new StreamWriter(ficheroSalida))
-                using (CustomXmlWriter writer = new CustomXmlWriter(sw))
+                using(StreamWriter sw = new StreamWriter(ficheroSalida))
+                using(CustomXmlWriter writer = new CustomXmlWriter(sw))
+                {
+                    documentoXml.DocumentElement.WriteTo(writer);
+                }
+                using(StreamWriter sw2 = new StreamWriter(ficheroSalida2))
+                using(CustomXmlWriter writer = new CustomXmlWriter(sw2))
                 {
                     documentoXml.DocumentElement.WriteTo(writer);
                 }
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 string pathSalida = Path.ChangeExtension(ficheroSalida, "sal");
                 Console.WriteLine($"Error al procesar el archivo: {ex.Message}");
@@ -72,7 +78,7 @@ namespace rentaXSDtoXML
         private static void ProcessComplexType(XmlSchemaComplexType complexType, XmlElement parentElement, XmlDocument xmlDoc)
         {
             //Procesado de tipos complejos del esquema (complexType)
-            if (complexType.Particle != null)
+            if(complexType.Particle != null)
             {
                 ProcessParticle(complexType.Particle, parentElement, xmlDoc);
             }
@@ -81,11 +87,11 @@ namespace rentaXSDtoXML
         private static void ProcessParticle(XmlSchemaParticle particle, XmlElement parentElement, XmlDocument xmlDoc)
         {
             //Procesado de los componentes del esquema
-            switch (particle)
+            switch(particle)
             {
                 case XmlSchemaSequence sequence:
                     //Procesa los elementos que son 'sequence'
-                    foreach (XmlSchemaObject item in sequence.Items)
+                    foreach(XmlSchemaObject item in sequence.Items)
                     {
                         ProcessSchemaObject(item, parentElement, xmlDoc);
                     }
@@ -93,7 +99,7 @@ namespace rentaXSDtoXML
 
                 case XmlSchemaChoice choice:
                     //Procesa los elementos que son 'choice'
-                    foreach (XmlSchemaObject item in choice.Items)
+                    foreach(XmlSchemaObject item in choice.Items)
                     {
                         ProcessSchemaObject(item, parentElement, xmlDoc);
                     }
@@ -101,7 +107,7 @@ namespace rentaXSDtoXML
 
                 case XmlSchemaAll all:
                     //Procesa todos los elementos 
-                    foreach (XmlSchemaObject item in all.Items)
+                    foreach(XmlSchemaObject item in all.Items)
                     {
                         ProcessSchemaObject(item, parentElement, xmlDoc);
                     }
@@ -112,7 +118,7 @@ namespace rentaXSDtoXML
         private static void ProcessSchemaObject(XmlSchemaObject schemaObject, XmlElement parentElement, XmlDocument xmlDoc)
         {
             //Procesa los objetos que se le pasan desde el metodo para procesar los componentes del esquema 'ProcessParticle'
-            switch (schemaObject)
+            switch(schemaObject)
             {
                 case XmlSchemaElement element:
                     ProcessSchemaElement(element, parentElement, xmlDoc);
@@ -139,9 +145,9 @@ namespace rentaXSDtoXML
             var elementType = schemaElement.ElementSchemaType as XmlSchemaComplexType;
 
             //Con esto se evita que se creen dos nodos 'Declaracion'
-            if (parentElement == xmlDoc.DocumentElement && schemaElement.Name == "Declaracion")
+            if(parentElement == xmlDoc.DocumentElement && schemaElement.Name == "Declaracion")
             {
-                if (elementType != null)
+                if(elementType != null)
                 {
                     ProcessComplexType(elementType, parentElement, xmlDoc);
                 }
@@ -153,7 +159,7 @@ namespace rentaXSDtoXML
             parentElement.AppendChild(newElement);
 
             //Si el elemento no es nulo, se envia al metodo para procesar tipos complejos
-            if (elementType != null)
+            if(elementType != null)
             {
                 ProcessComplexType(elementType, newElement, xmlDoc);
             }
@@ -176,7 +182,7 @@ namespace rentaXSDtoXML
 
         public override void WriteEndElement()
         {
-            if (WriteState == WriteState.Element)
+            if(WriteState == WriteState.Element)
             {
                 // Si el elemento está vacío o solo tiene un espacio, escríbelo en una línea
                 WriteString(" ");
